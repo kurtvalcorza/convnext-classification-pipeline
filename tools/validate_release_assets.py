@@ -1,6 +1,6 @@
 """Static release-asset validation for the ConvNeXt-Tiny classification DIMER pipeline.
 
-Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 1.1 §3.6), the tutorial
+Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §3.6), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
 cross-document identity consistency, and runs the generator parity checks (PAR1–PAR3).
 
@@ -23,19 +23,21 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "convnext_classification_pipeline"
 REPO_NAME = "convnext-classification-pipeline"
 NOTEBOOK_NAME = "convnext_classification_colab.ipynb"
-EXPECTED_PROFILE = "TASK-INFERENCE"
+EXPECTED_PROFILE = "E2E"
 EXPECTED_MODEL_ID = "timm/convnext_tiny.in12k_ft_in1k"
 PIPELINE_CLASS = "ConvNeXtClassificationPipeline"
 # Additional 40-hex revisions a document may legitimately cite (none by default).
 KNOWN_SHAS: frozenset[str] = frozenset(())
 # Colab form gates that must default to the non-interactive sample path.
-BYOD_GATES = ("USE_BYOD",)
+BYOD_GATES = ("USE_BYOD", "USE_BYOD_DATASET")
 # Machine-readable artifacts the notebook must write (OUT1-OUT3, DAT24, EVAL21).
 EXPECTED_OUTPUTS = (
     "outputs/convnext_classification_input_manifest.json",
     "outputs/convnext_classification_evaluation_report.json",
     "outputs/convnext_classification_result.json",
     "outputs/convnext_classification_top_k.csv",
+    "outputs/convnext_classification_finetuned/model.safetensors",
+    "outputs/convnext_classification_finetuned/model-config.json",
 )
 # Profile-specific code the notebook must exercise through the carried module's public API.
 CODE_MARKERS = (
@@ -54,11 +56,13 @@ CODE_MARKERS = (
     "'model_license': MODEL_LICENSE",
     "timm.__version__",
     "'device': pipe.device",
+    "pipe.fit(",
+    "reloaded_pipe = ConvNeXtClassificationPipeline.from_pretrained(weights_dir=",
 )
 # Profile-specific learner-facing statements.
 MARKDOWN_MARKERS = (
     "**Capability:** ImageNet-1k single-label image classification (1000 classes)",
-    "**No adaptation occurs:**",
+    "**In-kernel fine-tuning:**",
     "The decision rule is `argmax` over the 1000 softmax scores",
     "**not a calibrated probability**",
     "the pipeline ships no acceptance threshold",
@@ -85,10 +89,10 @@ FORBIDDEN_OUTSIDE_MODULE = (
 # ---------------------------------------------------------------------------
 # Shared checks. Everything below is source/structure validation only. Passing
 # these checks is NOT clean-runtime execution evidence under DIMER Notebook
-# Specification 1.1; see docs/release-verification.md for the release gate.
+# Specification 2.0; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "1.1"
+NOTEBOOK_SPEC = "2.0"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
