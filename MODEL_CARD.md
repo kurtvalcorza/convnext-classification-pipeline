@@ -2,6 +2,7 @@
 license: apache-2.0
 model_card_spec: "1.1"
 pipeline_tag: image-classification
+task: ["Image Classification", "Image Classification - Document Type"]
 base_model: timm/convnext_tiny.in12k_ft_in1k
 date_published: "2023-01-11"
 date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt`, https://huggingface.co/api/models/timm/convnext_tiny.in12k_ft_in1k)"
