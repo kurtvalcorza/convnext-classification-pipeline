@@ -123,16 +123,52 @@ they are measurements for the stated runtime, not general estimates.
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
 | 2026-09-14 | `98fa3d8` / `79eaced9ad68` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-convnext-classification` v1) | Default path (inference, fine-tuning, reload, held-out evaluation) | pass 1 150.6 s + pass 2 28.0 s | **Not a one-pass `Run all`; not promotion evidence.** Pass 1 stopped in the install cell with the restart `RuntimeError` (`cuda-bindings` 12.9.4 → 13.4.1, `numpy` 2.0.2 → 2.5.3); pass 2, after the restart, ran 10/10 code cells (held-out 5/6, verdict then hard-coded `success`). Superseded by the review fixes (isolated environment, no restart); the current blob has no hosted run yet. |
+| 2026-10-04 | `625fd1b` / `1f059ceaa746` | Colab CLI 0.7.4 sequential execution, fresh Colab Tesla T4 (session `suite-convnext-625fd1b-a531`) | Default path only (`TRAINABLE = 'head'`; inference, head-only fine-tuning, reload, held-out evaluation) | 106.0 s | **One pass, no restart, 0 errors**, 14/14 code cells. Held-out **37/40 = 92.5 %, 95 % Wilson 80.1 %–97.4 %**, above the 50 % majority baseline (verdict `sample-sanity`, `above-baseline`). See the record below. |
+
+### 2026-10-04 — Colab CLI one-pass run of `625fd1b` (fresh Colab Tesla T4)
+
+- **Commit / notebook blob:** `625fd1b543f13020dcf438574c7f6d5672c293c7` / `1f059ceaa7468cb857bce1fdff945419a60c9f6b`
+  (blob checked against the fetched bytes before the VM was allocated; executed code-cell sources equal the commit's).
+- **Executor:** Colab CLI 0.7.4 sequential execution (`colab exec -f`), fresh Colab VM, Tesla T4, no repository
+  checkout, clean model cache. This is **not** a browser `Run all`: the CLI sets no execution counts, so cell order is
+  evidenced by `exec.log` (`Executing cell 1/14` … `14/14`, in order); forms were not rendered.
+- **Path:** default settings only (`USE_BYOD = False`, `GROUND_TRUTH_INDEX = -1`, `USE_BYOD_DATASET = False`,
+  `TRAINABLE = 'head'`). Wall time 106.0 s (suite wall clock, including installs and the model download).
+- **Outcome:** **one pass, no restart, 0 errors**; 14/14 code cells; cell 4 (the carried module definition) prints
+  nothing by design. One Pillow `DeprecationWarning` (`mode` parameter) in the sample cell.
+- **Runtime:** isolated Python 3.12.12 (kernel 3.13.15), 45 locked packages, torch 2.14.0+cu130, timm 1.0.29,
+  `cuda: True`, device `cuda:0`; `NOTEBOOK_SOURCE.repository_revision` `d31f2ee1` = `metadata.dimer.generated_from`.
+- **Model:** `timm/convnext_tiny.in12k_ft_in1k` @ `aa096f03029c7f0ec052013f64c819b34f8ad790` (apache-2.0, 3 files,
+  114,390,940 bytes), loaded with `source == 'local-snapshot'`.
+- **Inference:** synthetic 256×256 gradient (RGB SHA-256 `e38db00b…`), input manifest `accepted` with the oversized
+  probe `rejected`; `decision_rule == 'argmax'`, top-1 `analog clock` (409); evaluation report `not-measurable`
+  (no ground truth).
+- **Section 8:** tutorial dataset `Cleanlab/cifar-10-subset @ bb5a7aab`, SHA-256 `66f90a4f…`; pair-grouped split
+  80 train / 20 held out per class (160 / 40), `held_out_sharing_a_file_name_with_train: 0`.
+- **Section 9:** head-only fine-tuning, 1,538 trainable / 27,820,128 frozen parameters, 1 epoch, batch 4,
+  lr 1e-4; train loss 0.4082, val loss 0.2318, val accuracy 0.925.
+- **Section 10:** reload `source == 'fine-tuned-artifact'`, 40/40 label agreement, max score difference 0.0,
+  `equivalent: True`. Held-out **37/40 = 92.5 %**, 95 % Wilson interval **80.1 % to 97.4 %**, majority baseline
+  50.0 % (`frog`), verdict `sample-sanity`, `comparison_to_baseline: above-baseline`; frog 19/20, truck 18/20;
+  misclassified: `original_images/frog/image_9.png` and both copies of `truck/image_13.png`. These equal the
+  worked answers' local CPU figures (loss 0.41 / 0.23, 37/40, interval 80–97 %).
+- **Exports:** the result JSON, top-k CSV, validation-predictions CSV, input manifest, both evaluation reports and
+  `convnext_classification_finetuned/{model.safetensors,model-config.json}` were written.
+- **Evidence files** (`docs/execution-evidence/2026-10-04/`, byte-for-byte from the run directory):
+  - `convnext_classification_colab_625fd1b_colab-cli-t4_output.ipynb` — SHA-256 `da6df13de56ea34169d3683fedf6220f1c7cd6041149e5f84317c31bdddee2c6`
+  - `exec.log` — SHA-256 `8e97434202fc7599d30378dbb74fe6a78d89932622cc172abdf5cd528a082329`
+  - `run_summary.json` — SHA-256 `19356881291de881b7dd8f5c36d40a3d4714b176a066365744488c64aac3be67`
+- **Not exercised:** the BYOD image and BYOD dataset gates (step 7), the Section 12 activity (`TRAINABLE = 'all'`)
+  and any other optional journey; no browser interaction.
 
 ## Current status
 
 **Candidate.** The review fixes (CNX-M1..M4, CNX-m1..m4, review PR #8) regenerated the notebook: no in-kernel
 install (the fleet's uv isolated environment), the fine-tuning method stated as it runs and its configuration
 exported, a held-out verdict computed from the counts with its interval, a validated dataset intake, a working
-fallback, a reload equivalence check and the guided layer. Static validation (`tools/validate_release_assets.py`),
-the generator `--check`, ruff and the offline unit suite pass on this source; a local Windows CPU pre-flight
-(install skipped, real pinned weights, not a supported runtime) ran every code cell. That is necessary but not
-sufficient: **no one-pass hosted `Run all` of the current notebook blob is recorded**, and the BYOD release gate
-(step 7) has not been exercised on a hosted runtime. The registry status remains **Candidate** until a reviewer
-confirms such a recorded run against the notebook blob under review and an integrator promotes it; promotion is not
-performed by the builder.
+fallback, a reload equivalence check and the guided layer. Static validation, the generator `--check`, ruff and the
+offline unit suite pass on this source. A one-pass hosted run of the current notebook blob `1f059cea` is recorded
+above (2026-10-04, Colab CLI sequential execution on a fresh Tesla T4, default path, 14/14 cells, no restart,
+held-out 37/40, Wilson 80.1 %–97.4 %). Remaining gates: the BYOD release gate (step 7) on a hosted runtime and a
+reviewer's confirmation of the recorded run against the blob under review. The registry status remains
+**Candidate** until an integrator promotes it; promotion is not performed by the builder.
