@@ -117,7 +117,7 @@ SPLIT_SEED = 42  # @param {type:"integer"}
 SAMPLE_DATASET_URL = 'https://huggingface.co/datasets/Cleanlab/cifar-10-subset/resolve/bb5a7aabf1d14d2d1e3e49d0d8f917bda3622f75/CIFAR-10-subset.zip'
 SAMPLE_DATASET_SHA256 = '66f90a4f87d865e8eb653b62f10e754684075a32314177de76832349d4b1fb19'
 VALIDATION_SPLIT = 0.2
-SUBSET_PER_CLASS = 16  # images per class kept from the tutorial dataset (13 train + 3 held out)
+SUBSET_PER_CLASS = 100  # images per class kept from the tutorial dataset (50 photo pairs: 80 train + 20 held out)
 
 if USE_BYOD_DATASET:
     if BYOD_DATASET_PATH:
@@ -349,14 +349,16 @@ TEMPLATE = {
         "kernel's own packages are left alone, so no restart is needed), stages and digest-verifies the pinned snapshot, "
         "generates the deterministic synthetic sample image, validates it into an input manifest, classifies it with the "
         "pretrained ImageNet-1k head, writes the zero-shot evaluation report, downloads and digest-verifies the "
-        "`Cleanlab/cifar-10-subset` tutorial dataset and validates a seeded split of 16 images per class (26 training, 6 "
-        "held out), fine-tunes the whole network with a new two-class head (**full fine-tuning**, one epoch, AdamW and "
+        "`Cleanlab/cifar-10-subset` tutorial dataset and validates a seeded, pair-grouped split of 100 images per class "
+        "(160 training, 40 held out; both copies of a photo stay on one side), fine-tunes the whole network with a new two-class head (**full fine-tuning**, one epoch, AdamW and "
         "cross-entropy), exports the artifact (`model.safetensors` + `model-config.json`), reloads it across a fresh "
-        "boundary and checks it reproduces the in-memory model, evaluates it on the 6 held-out images with a 95 % interval "
+        "boundary and checks it reproduces the in-memory model, evaluates it on the 40 held-out images with a 95 % interval "
         "against the majority-class baseline, and writes outputs and provenance. No repository clone, DIMER worker or "
         "service, credential, upload dialog or configuration edit is required (NOTEBOOK_SPEC 2.2 §5). Measured times come "
         "from the previous notebook version, whose model stages are the same: its cells took 28.0 s on a Kaggle Tesla T4 "
-        "(2026-09-14, after the install) and 9.0 s of cell time in a local Windows CPU check with the files pre-staged. "
+        "(2026-09-14, after the install) and 9.0 s of cell time in a local Windows CPU check with the files pre-staged; "
+        "this version fine-tunes on 160 instead of 26 images, which took 113 s of the 131 s default path in a local "
+        "Windows CPU check (2026-10-04, files pre-staged) and should take seconds on a T4 (an estimate). "
         "Building the isolated environment (PyTorch with its CUDA libraries) and downloading the 114 MB checkpoint come on "
         "top of these and usually take a few minutes (an estimate; no run of this version is recorded yet)."
     ),
@@ -409,8 +411,8 @@ TEMPLATE = {
         "The carried pipeline module adds snapshot verification, input and dataset validation, `fit`, a held-out "
         "evaluation report with its uncertainty, and the `top_k_accuracy`, `validate_inputs` and `evaluation_report` "
         "helpers. The default inference sample is a synthetic image generated in code; its prediction is demonstration "
-        "(plumbing) evidence, not a production-quality or benchmark claim. The fine-tuning result is measured on **6 "
-        "held-out images**, so it is a tutorial metric whose 95 % interval is wide, not evidence that the method works "
+        "(plumbing) evidence, not a production-quality or benchmark claim. The fine-tuning result is measured on **40 "
+        "held-out images** (20 photos, each in two copies), so it is a tutorial metric with a wide 95 % interval, not evidence that the method works "
         "in general.\n\n"
         "**Who this is for.** A learner who knows basic Python and has met the idea of an image classifier, and wants to "
         "see how a pretrained network is used, adapted to new classes and checked honestly. No prior experience with "
@@ -454,7 +456,7 @@ TEMPLATE = {
     "prerequisites": [
         "- **Learner:** basic Python and Colab or Jupyter familiarity; what an image classifier does. The notebook explains the softmax over class logits (and why it is not a calibrated probability), fine-tuning (full vs head-only), AdamW, cross-entropy, a held-out split, the majority-class baseline and a confidence interval where they are first used; the Glossary repeats them.",
         "- **Runtime:** a fresh **Linux x86_64** runtime — Google Colab, Kaggle or Linux Jupyter. Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels, so the kernel's own Python version does not matter, and a Windows or macOS kernel is not supported (Section 1 stops with that message). The default path runs on CPU and uses CUDA automatically when available; inference and training are float32. The locked install (PyTorch 2.14.0 with its CUDA libraries) is the largest download. Time: the previous notebook version's cells took 28.0 s on a Kaggle Tesla T4 (2026-09-14) and 9.0 s in a local Windows CPU check with the files pre-staged; the isolated install and the downloads add a few minutes (an estimate).",
-        "- **Data (default path):** the inference sample is a deterministic 256×256 RGB gradient generated in code (no ground truth). The fine-tuning sections download one dataset: [`Cleanlab/cifar-10-subset`](https://huggingface.co/datasets/Cleanlab/cifar-10-subset) at commit `bb5a7aab` (MIT licence), a 986,707-byte `.zip` from `huggingface.co`, refused unless its SHA-256 is `66f90a4f…`. It holds 400 CIFAR-10 images of 32×32 px (upscaled to 224 px by the model's preprocessing) in two classes, `frog` and `truck`, each stored twice: an original and a darkened copy. The notebook keeps 16 per class (seeded) and holds out 3 per class. If the download fails, Section 8 falls back to a synthetic two-class stripes dataset and says so.",
+        "- **Data (default path):** the inference sample is a deterministic 256×256 RGB gradient generated in code (no ground truth). The fine-tuning sections download one dataset: [`Cleanlab/cifar-10-subset`](https://huggingface.co/datasets/Cleanlab/cifar-10-subset) at commit `bb5a7aab` (MIT licence), a 986,707-byte `.zip` from `huggingface.co`, refused unless its SHA-256 is `66f90a4f…`. It holds 400 CIFAR-10 images of 32×32 px (upscaled to 224 px by the model's preprocessing) in two classes, `frog` and `truck`, each stored twice: an original and a darkened copy. The notebook keeps 100 per class — 50 photos, each with both copies — and holds out 20 per class (10 photos), always keeping a photo's two copies on the same side of the split. If the download fails, Section 8 falls back to a synthetic two-class stripes dataset and says so.",
         "- **BYOD image (Section 4):** one image file decodable by Pillow (PNG, JPEG, WebP, BMP and similar), any colour mode, longest side at most 4096 px; optionally its ImageNet-1k class index (0–999).",
         "- **BYOD dataset (Section 8):** one `.zip` of at most 200 MB and 2,000 images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`; longest side at most 4096 px) in **either** `<class>/<image>` folders (split here: per class, seeded, 20 % held out, at least 2 images per class) **or** `train/<class>/…` plus `val/<class>/…` (also `valid/`, `validation/`) used as given. At least 2 and at most 100 classes; every image must be inside a class folder; every validation class must also exist in `train/`; other files are skipped and listed. Section 8 checks all of this and decodes every image before any training, and names the file or class it refuses. Validation is structural, not semantic: nothing checks that an image shows its folder's class.",
         "- **Privacy:** Do not upload confidential or restricted data to a hosted notebook environment unless you are authorized to do so. Uploaded inputs remain in the notebook runtime; this pipeline does not send them to a third-party inference API.",
@@ -547,31 +549,34 @@ TEMPLATE = {
                 "- **Default (`USE_BYOD_DATASET = False`):** downloads [`Cleanlab/cifar-10-subset`](https://huggingface.co/datasets/Cleanlab/cifar-10-subset) "
                 "(MIT licence, 986,707 bytes) and refuses it unless its SHA-256 matches. It holds 400 CIFAR-10 images of "
                 "**32×32 px** in two classes, `frog` and `truck`; each photo is stored twice, as an original and a darkened "
-                "copy. `SUBSET_PER_CLASS = 16` images per class are drawn with `SPLIT_SEED` and 20 % of them (3 per class) "
-                "are held out: **26 training and 6 held-out images**. The model's preprocessing upscales every image to "
-                "224 px. The cell also counts held-out images that share a file name with a training image of the same "
-                "class (a sign that the two copies of one photo landed on both sides of the split): 0 at the default "
-                "`SPLIT_SEED = 42`, 1 at `SPLIT_SEED = 2`. If the download fails, the cell says so and falls back to a synthetic two-class stripes dataset "
+                "copy. The split is **pair-grouped**: images of one class with the same file name (`original_images/frog/"
+                "image_7.png` and `darkened_images/frog/image_7.png`) form one group, and a group always lands on one side, "
+                "so a held-out photo's darkened twin is never in training (otherwise the model could score it by memory). "
+                "With `SPLIT_SEED`, `SUBSET_PER_CLASS = 100` images (50 groups) per class are drawn and 20 % of the groups "
+                "(10 per class) are held out: **160 training and 40 held-out images**. The model's preprocessing upscales "
+                "every image to 224 px. The cell prints `held_out_sharing_a_file_name_with_train`, which the grouped split "
+                "keeps at 0. If the download fails, the cell says so and falls back to a synthetic two-class stripes dataset "
                 "(8 training, 4 held-out images); the results below then describe stripes.\n"
                 "- **Bring Your Own Data (`USE_BYOD_DATASET = True`):** upload a `.zip` (or set `BYOD_DATASET_PATH`) of "
                 "`<class>/<image>` folders, split here per class with `SPLIT_SEED`, or of `train/<class>/` and "
                 "`val/<class>/` folders used as given. `load_image_zip` decodes every image, checks it against "
                 "`MAX_IMAGE_SIDE`, and refuses — before any training, naming the file or class and the rule — an image "
-                "outside a class folder, a validation class missing from `train/`, a class with fewer than 2 images, fewer "
+                "outside a class folder, a validation class missing from `train/`, a class with fewer than 2 image groups, fewer "
                 "than 2 classes, an undecodable or oversized image, or an archive over its limits (see the Prerequisites). "
                 "Other files are skipped and listed.\n\n"
-                "**Predict before running:** with 3 held-out images per class, by how many percentage points does one "
-                "wrong prediction move the held-out accuracy?"
+                "**Predict before running:** with 20 held-out images per class, by how many percentage points does one "
+                "wrong prediction move the held-out accuracy? And how many independent photos are those 40 images?"
             ),
             "code": _DATA_CODE,
         },
         {
             "md": (
-                "**What to notice:** the dataset digest, `image_size_px: [32, 32]`, 13 training and 3 held-out images per "
+                "**What to notice:** the dataset digest, `image_size_px: [32, 32]`, 80 training and 20 held-out images per "
                 "class, and `held_out_sharing_a_file_name_with_train: 0`.\n\n"
-                "<details><summary>Check your reasoning</summary>By 16.7 points: 6 held-out images, so each one is "
-                "1/6 of the accuracy. That is the first reason to treat Section 10's number as a tutorial check rather than "
-                "a measurement.</details>\n\n"
+                "<details><summary>Check your reasoning</summary>By 2.5 points: 40 held-out images, so each one is "
+                "1/40 of the accuracy. But they are only 20 photos, each held out with its darkened copy, and the two copies "
+                "are usually classified alike, so the 40 images carry roughly the evidence of 20 independent photos. Keep "
+                "that in mind when Section 10 prints an interval computed as if all 40 were independent.</details>\n\n"
                 "## 9. Fine-tune\n\n"
                 "`pipe.fit(...)` builds the network from the verified snapshot, replaces the 1000-class head with a new "
                 "linear classifier sized to the target classes (`len(class_names)`, here 2), and trains with "
@@ -590,7 +595,7 @@ TEMPLATE = {
                 "classes, split) are written into `model-config.json` with the artifact and into the result file. No "
                 "external worker, CLI subprocess or unpinned dependency is involved. The per-epoch history reports "
                 "training loss, validation loss and validation accuracy on the held-out images.\n\n"
-                "**Predict before running:** after one epoch on 26 images, will the validation accuracy be above the 50 % "
+                "**Predict before running:** after one epoch on 160 images, will the validation accuracy be above the 50 % "
                 "that always answering one class would get? How many parameters will the default run train?"
             ),
             "code": _FIT_CODE,
@@ -601,13 +606,13 @@ TEMPLATE = {
                 "parameters plus the new 1,538-parameter head) and `frozen_parameters` 0, then one history row with the "
                 "training loss, the validation loss and the validation accuracy.\n\n"
                 "<details><summary>Check your reasoning</summary>Not necessarily. In a local Windows CPU check of this "
-                "notebook version (torch 2.14.0, defaults, 2026-10-04) one epoch gave training loss 1.06, validation loss "
-                "0.58 and validation accuracy 3/6 — exactly the 50 % baseline: every held-out truck was called a frog. The "
-                "Kaggle T4 run of the previous version gave validation loss 0.56 and 5/6, and CPU runs of the previous "
-                "version, whose augmentation was not seeded, ranged from 4/6 to 6/6 with the same settings. On 6 images the "
-                "result moves with the device and the seed, so the honest prediction is \"somewhere between 50 % and "
-                "100 %\". The default run trains all 27,821,666 parameters — far more than 26 training images can pin "
-                "down, which is why a held-out check matters.</details>\n\n"
+                "notebook version (torch 2.14.0, defaults, 2026-10-04) one epoch gave training loss 0.93, validation loss "
+                "0.72 and validation accuracy 20/40 — exactly the 50 % baseline: the model called every held-out image a "
+                "frog. Updating all 27,821,666 parameters at learning rate 1e-4 with batches of 4 for one epoch on 160 tiny, "
+                "upscaled images can push the whole network towards one answer; with `SPLIT_SEED` 1 and 2 the same thing "
+                "happened (20/40), with `SPLIT_SEED` 0 it reached 34/40. A GPU run may land elsewhere, so the honest "
+                "prediction is \"anywhere from the baseline upwards\" — which is why a held-out check, and Section 12, "
+                "matter.</details>\n\n"
                 "## 10. Fresh-boundary reload, equivalence check and held-out evaluation\n\n"
                 "Loading a file is not proof that it holds the model you evaluated. "
                 "`ConvNeXtClassificationPipeline.from_pretrained` loads `model.safetensors` and `model-config.json` from "
@@ -623,8 +628,10 @@ TEMPLATE = {
                 "`above-baseline` only when the whole interval lies above the baseline, `below-baseline` when it lies "
                 "below, and otherwise `indistinguishable-from-baseline`. Files: "
                 "`outputs/{stem}_validation_predictions.csv` and `outputs/{stem}_finetuned_evaluation_report.json`.\n\n"
-                "**Predict before running:** if the model gets 5 of the 6 held-out images right, does the 95 % interval "
-                "exclude the 50 % baseline? What if it gets 6 of 6?"
+                "Because the 40 held-out images are 20 photos in two copies, the interval treats correlated images as "
+                "independent and is somewhat **too narrow**; read it as a lower bound on the uncertainty.\n\n"
+                "**Predict before running:** if the model gets 26 of the 40 held-out images right (65 %), does the 95 % "
+                "interval exclude the 50 % baseline? What about 30 of 40?"
             ),
             "code": _RELOAD_CODE,
         },
@@ -632,13 +639,14 @@ TEMPLATE = {
             "md": (
                 "**What to notice:** `equivalent: True` with a score difference near 0; then `n`, the interval, the "
                 "baseline and the comparison word, not just the accuracy, and which images were misclassified.\n\n"
-                "<details><summary>Check your reasoning</summary>5/6 = 83.3 % has a 95 % Wilson interval of about 44 % to "
-                "97 %, which contains 50 %: `indistinguishable-from-baseline`. 6/6 gives about 61 % to 100 %, just above "
-                "50 %: `above-baseline`, but on six images from one seeded split. In the local CPU check of this version the "
-                "default run scored 3/6 (interval about 19 % to 81 %, `indistinguishable-from-baseline`; all three trucks "
-                "called frogs) and the reload matched exactly (difference 0.0); with `SPLIT_SEED` 0, 1 and 2 the same "
-                "check scored 6/6, 4/6 and 5/6. A one-image change flips the comparison, so no single run here shows that "
-                "fine-tuning works on frogs and trucks in general.</details>\n\n"
+                "<details><summary>Check your reasoning</summary>26/40 = 65 % has a 95 % Wilson interval of about 49.5 % to "
+                "78 %: its lower end sits just under the baseline, so `indistinguishable-from-baseline`. 30/40 = 75 % gives about "
+                "60 % to 86 %: `above-baseline`. In the local CPU check of this version the default run scored 20/40 "
+                "(interval about 35 % to 65 %, `indistinguishable-from-baseline`; frog 20/20, truck 0/20 — every image "
+                "called a frog) and the reload matched exactly (difference 0.0); with `SPLIT_SEED` 0, 1 and 2 the same "
+                "check scored 34/40 (`above-baseline`), 20/40 and 20/40. So full fine-tuning with these settings sometimes "
+                "learns the task and sometimes collapses to one class: no single run here shows that it works on frogs "
+                "and trucks in general.</details>\n\n"
                 "## 11. Export outputs and provenance\n\n"
                 "*Engineering and reproducibility.* Machine-readable JSON preserves the full prediction (argmax decision and "
                 "the rank-ordered top-k scores), the evaluation report, the fine-tuning configuration (method, trainable and "
@@ -670,12 +678,13 @@ TEMPLATE = {
                 "5. **Explain:** what did freezing the backbone change, and does the held-out set have enough images to tell "
                 "the two methods apart?\n\n"
                 "<details><summary>Check your reasoning</summary>In the local CPU check of this notebook version, one "
-                "head-only epoch ended with validation loss 0.71 (full fine-tuning: 0.58) and the held-out count went from "
-                "3/6 to 2/6 (95 % interval about 10 % to 70 %, `indistinguishable-from-baseline`): with one epoch at "
-                "learning rate 1e-4 the new head has barely moved from its random start, while full fine-tuning also "
-                "reshapes the backbone. A longer run (`EPOCHS`) or a larger `LEARNING_RATE` is the natural next change for "
-                "the head. On 6 images, though, a difference of a few images is within the noise: the intervals of the two "
-                "runs overlap, so this sample cannot rank the methods.</details>"
+                "head-only epoch ended with validation loss 0.23 (full fine-tuning: 0.72) and the held-out count went from "
+                "20/40 to 37/40 (95 % interval about 80 % to 97 %, `above-baseline`; 3 errors). Freezing the backbone kept "
+                "the pretrained features intact and trained only 1,538 parameters, which 160 images can pin down; full "
+                "fine-tuning at the same learning rate disturbed the backbone and collapsed to one class. Here the two "
+                "intervals do not overlap, so on this split head-only is clearly better — but it is one split, one seed and "
+                "20 independent photos, and full fine-tuning reached 34/40 at `SPLIT_SEED = 0`. A smaller "
+                "`LEARNING_RATE` for full fine-tuning is the natural next experiment.</details>"
             ),
             "code": _ACTIVITY_CODE,
         },
@@ -688,13 +697,15 @@ TEMPLATE = {
         "meaningless by construction and the evaluation report says `not-measurable`; a `top_k_accuracy` value shown for a "
         "single BYOD image is tutorial evidence for that one image and must not be generalized to a domain, camera, or "
         "class distribution.\n\n"
-        "The **fine-tuning result** is a held-out accuracy on **6 images** (3 frogs, 3 trucks, 32×32 px upscaled) from one "
-        "seeded split and one training run. Read it together with its 95 % interval and the 50 % majority-class baseline "
-        "printed in Section 10: one image moves the accuracy by 16.7 points, the interval for 5/6 contains the baseline, "
-        "and different split seeds or devices move the count (a local CPU check of this version scored 3/6 at the default "
-        "seed and 6/6, 4/6 and 5/6 at split seeds 0, 1 and 2). It shows that the fine-tuning, export and reload path runs "
+        "The **fine-tuning result** is a held-out accuracy on **40 images** — 20 photos (10 frogs, 10 trucks, 32×32 px "
+        "upscaled), each with its darkened copy — from one seeded, pair-grouped split and one training run. Read it "
+        "together with its 95 % interval and the 50 % majority-class baseline printed in Section 10, remembering that "
+        "the interval treats the 40 correlated images as independent and is therefore too narrow. Different split "
+        "seeds or devices move the count: a local CPU check of this version scored 20/40 (every image called a frog) at "
+        "the default seed and 34/40, 20/40 and 20/40 at split seeds 0, 1 and 2, and head-only fine-tuning scored 37/40 "
+        "on the default split. It shows that the fine-tuning, export and reload path runs "
         "and produces a working two-class classifier on this sample; it does **not** show how well fine-tuning works on "
-        "frogs and trucks, on CIFAR-10, or on your data. The default run trains all 27.8 M parameters on 26 images, so "
+        "frogs and trucks, on CIFAR-10, or on your data. The default run trains all 27.8 M parameters on 160 images, so "
         "over-fitting to the training images is likely and would not be visible on so few held-out images. Images whose "
         "subject is outside ImageNet-1k, line drawings, medical or satellite imagery, and subjects near the image border "
         "(removed by the center crop) all degrade results in ways the pipeline does not detect. The pipeline provides no "

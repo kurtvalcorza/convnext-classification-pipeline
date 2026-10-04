@@ -446,9 +446,17 @@ def load_image_zip(
 ) -> dict[str, Any]:
     """Read a class-folder image archive into a seeded train/val split, refusing bad layouts before training.
 
-    Two layouts are accepted: ``<class>/<image>`` folders (split here, per class, seeded: the first
-    ``max(1, int(n * validation_split))`` shuffled images of a class are validation), or ``train/<class>/...``
-    plus ``val/<class>/...`` (``valid``/``validation`` also accepted) used as given. Every image must sit
+    Two layouts are accepted: ``<class>/<image>`` folders, split here, or ``train/<class>/...`` plus
+    ``val/<class>/...`` (``valid``/``validation`` also accepted) used as given.
+
+    The split here is **pair-grouped** and seeded, per class. Images of one class whose file names
+    (the last path component) are equal form one group, e.g. ``original_images/frog/image_7.png`` and
+    ``darkened_images/frog/image_7.png``; a group always lands on one side of the split. Groups are
+    listed in archive order of their first image and shuffled with one ``random.Random(seed)`` shared
+    across classes (classes in archive order). With ``subset_per_class`` the leading groups are kept
+    while their image total stays within ``subset_per_class``. The first
+    ``max(1, int(n_groups * validation_split))`` kept groups are validation, the rest training. When no
+    two images share a name this equals the previous per-image split. Every image must sit
     inside a class folder, every validation class must exist in ``train``, at least 2 classes are needed,
     every image is decoded and checked against ``MAX_IMAGE_SIDE`` here, and the archive limits are
     ``MAX_DATASET_ARCHIVE_BYTES``, ``MAX_DATASET_IMAGES`` and ``MAX_DATASET_CLASSES``. Each refusal names the
@@ -537,16 +545,31 @@ def load_image_zip(
         else:
             rng = random.Random(seed)
             for cls, parts in files.items():
-                pool = list(parts["all"])
-                if len(pool) < 2:
+                grouped: dict[str, list[str]] = {}
+                for name in parts["all"]:
+                    grouped.setdefault(parts_of(name)[-1], []).append(name)
+                groups = list(grouped.values())
+                if len(groups) < 2:
                     raise ValueError(
-                        f"class {cls!r} has {len(pool)} image(s); each class needs >= 2 for a train/val split"
+                        f"class {cls!r} has {len(groups)} image group(s) (images sharing a file name are "
+                        "one group); each class needs >= 2 for a train/val split"
                     )
-                rng.shuffle(pool)
+                rng.shuffle(groups)
                 if subset_per_class:
-                    pool = pool[:subset_per_class]
-                n_val = max(1, int(len(pool) * validation_split))
-                chosen[cls] = {"train": pool[n_val:], "val": pool[:n_val]}
+                    kept, total = [], 0
+                    for group in groups:
+                        if total + len(group) > subset_per_class:
+                            break
+                        kept.append(group)
+                        total += len(group)
+                    if len(kept) < 2:
+                        raise ValueError(f"class {cls!r}: subset_per_class={subset_per_class} < 2 groups")
+                    groups = kept
+                n_val = max(1, int(len(groups) * validation_split))
+                chosen[cls] = {
+                    "train": [name for group in groups[n_val:] for name in group],
+                    "val": [name for group in groups[:n_val] for name in group],
+                }
 
         out: dict[str, Any] = {"train_images": [], "train_targets": [], "val_images": [], "val_targets": [],
                                "train_ids": [], "val_ids": []}
@@ -561,7 +584,7 @@ def load_image_zip(
         "source": source,
         "sha256": hashlib.sha256(zip_bytes).hexdigest(),
         "bytes": len(zip_bytes),
-        "layout": "train/ and val/ folders" if presplit else "class folders, seeded split per class",
+        "layout": "train/ and val/ folders" if presplit else "class folders, seeded pair-grouped split",
         "validation_split": None if presplit else validation_split,
         "seed": None if presplit else seed,
         "subset_per_class": None if presplit else subset_per_class,

@@ -275,20 +275,20 @@ def test_notebook_has_no_literal_verdict_and_interprets_the_fine_tune(nb: dict) 
     assert "'verdict': 'success'" not in code
     markdown = _markdown(nb)
     closing = markdown[markdown.index("## Interpretation and limits") :]
-    assert "**6 images**" in closing and "95 % interval" in closing
+    assert "**40 images**" in closing and "95 % interval" in closing
 
 
 # --- CNX-m1 / CNX-m2 / CNX-m3: data intake, fallback, reload equivalence -----------------------------------------
 
 
-def test_load_image_zip_reproduces_the_previous_seeded_split() -> None:
+def test_load_image_zip_reproduces_the_previous_split_when_no_names_repeat() -> None:
+    """With no shared file names every group is one image, so the split equals the previous per-image one."""
     import random
 
     entries = {
-        f"set/{v}/{c}/image_{k}.png": _png((k * 9 % 255, 30, 90 if c == "frog" else 10))
-        for v in ("original", "darkened")
+        f"set/{c}/image_{k}.png": _png((k * 9 % 255, 30, 90 if c == "frog" else 10))
         for c in ("frog", "truck")
-        for k in range(12)
+        for k in range(24)
     }
     data = pl.load_image_zip(_zip(entries), seed=42, validation_split=0.2, subset_per_class=16)
     # The notebook's previous inline algorithm: classes in archive order, one Random(seed) across classes.
@@ -305,10 +305,41 @@ def test_load_image_zip_reproduces_the_previous_seeded_split() -> None:
         expected_val += files[:n_val]
         expected_train += files[n_val:]
     assert data["train_ids"] == expected_train and data["val_ids"] == expected_val
-    assert data["classes"] == ["frog", "truck"] and data["manifest"]["per_class"]["frog"] == {
-        "train": 13,
-        "val": 3,
-    }
+    assert data["classes"] == ["frog", "truck"] and data["manifest"]["per_class"]["frog"] == {"train": 13, "val": 3}
+
+
+def _pair_archive() -> bytes:
+    """The tutorial archive's layout: 2 classes x 100 photos, each stored as original_images/ and darkened_images/."""
+    return _zip(
+        {
+            f"CIFAR-10-subset/{v}/{c}/image_{k}.png": _png((k % 256, 0 if v == "original_images" else 9, 50 if c == "frog" else 0), (4, 4))
+            for v in ("original_images", "darkened_images")
+            for c in ("frog", "truck")
+            for k in range(100)
+        }
+    )
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2, 42])
+def test_pair_grouped_split_never_straddles_a_photo(seed: int) -> None:
+    """CNX-M3 option B: SUBSET_PER_CLASS=100 keeps 50 photo pairs per class; no pair straddles train/held-out."""
+    import os
+
+    data = pl.load_image_zip(_pair_archive(), seed=seed, validation_split=0.2, subset_per_class=100)
+    assert data["manifest"]["per_class"] == {"frog": {"train": 80, "val": 20}, "truck": {"train": 80, "val": 20}}
+    train = {(t, os.path.basename(i)) for t, i in zip(data["train_targets"], data["train_ids"], strict=True)}
+    val = [(t, os.path.basename(i)) for t, i in zip(data["val_targets"], data["val_ids"], strict=True)]
+    assert not train.intersection(val)
+    # every kept photo appears with both copies on its side
+    for side in (data["train_ids"], data["val_ids"]):
+        names = [i.replace("darkened_images", "original_images") for i in side]
+        assert all(names.count(n) == 2 for n in names)
+
+
+def test_notebook_default_uses_the_grouped_subset_of_100(nb: dict) -> None:
+    data_cell = _cell(nb, "USE_BYOD_DATASET = False")
+    assert re.search(r"^SUBSET_PER_CLASS = 100\b", data_cell, re.M)
+    assert "subset_per_class=SUBSET_PER_CLASS" in data_cell
 
 
 @pytest.mark.parametrize(

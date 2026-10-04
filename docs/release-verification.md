@@ -87,11 +87,12 @@ Before changing the registry status from `Candidate` to `Release-grade`:
    - `evaluation_report` writes `outputs/convnext_classification_evaluation_report.json` with verdict `not-measurable`
      on the synthetic sample (no ground truth), stated as such;
    - Section 8: the tutorial dataset is downloaded and digest-verified (`66f90a4f…`, not the synthetic fallback), with
-     13 training and 3 held-out images per class and `held_out_sharing_a_file_name_with_train: 0`;
+     a pair-grouped split of 80 training and 20 held-out images per class (both copies of a photo on one side) and
+     `held_out_sharing_a_file_name_with_train: 0`;
    - Section 9: `full fine-tuning` with 27,821,666 trainable and 0 frozen parameters printed before training, and the
      one-epoch history;
    - Section 10: the reloaded artifact reports `source == 'fine-tuned-artifact'` and `equivalent: True`, and the
-     held-out report prints `n = 6`, the count, the 95 % Wilson interval, the majority baseline, the verdict
+     held-out report prints `n = 40`, the count, the 95 % Wilson interval, the majority baseline, the verdict
      `sample-sanity` and `comparison_to_baseline`;
    - `outputs/convnext_classification_result.json` (with `fine_tuning.config`, `fine_tuning.dataset`,
      `fine_tuning.evaluation` and `fine_tuning.artifact_sha256`), `outputs/convnext_classification_top_k.csv`,
