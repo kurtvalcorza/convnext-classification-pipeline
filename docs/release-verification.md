@@ -66,7 +66,7 @@ Before changing the registry status from `Candidate` to `Release-grade`:
 2. open that exact notebook revision in a new Linux x86_64 runtime (Colab, or the executors above) with **no
    repository checkout** and a clean model cache;
 3. choose **Run all once** without editing implementation cells (form parameters at their defaults:
-   `USE_BYOD = False`, `GROUND_TRUTH_INDEX = -1`, `USE_BYOD_DATASET = False`, `TRAINABLE = 'all'`); a run that needs
+   `USE_BYOD = False`, `GROUND_TRUTH_INDEX = -1`, `USE_BYOD_DATASET = False`, `TRAINABLE = 'head'`); a run that needs
    a restart or a second pass is not a `Run all` PASS and must be recorded as such;
 4. verify that Section 1 builds the isolated environment (`isolated_python` 3.12.12, the locked package count) and
    that the runtime cell reports `NOTEBOOK_SOURCE.repository_revision` equal to the module commit recorded in
@@ -89,8 +89,8 @@ Before changing the registry status from `Candidate` to `Release-grade`:
    - Section 8: the tutorial dataset is downloaded and digest-verified (`66f90a4f…`, not the synthetic fallback), with
      a pair-grouped split of 80 training and 20 held-out images per class (both copies of a photo on one side) and
      `held_out_sharing_a_file_name_with_train: 0`;
-   - Section 9: `full fine-tuning` with 27,821,666 trainable and 0 frozen parameters printed before training, and the
-     one-epoch history;
+   - Section 9: `head-only fine-tuning` with 1,538 trainable and 27,820,128 frozen parameters printed before training,
+     and the one-epoch history;
    - Section 10: the reloaded artifact reports `source == 'fine-tuned-artifact'` and `equivalent: True`, and the
      held-out report prints `n = 40`, the count, the 95 % Wilson interval, the majority baseline, the verdict
      `sample-sanity` and `comparison_to_baseline`;

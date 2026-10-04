@@ -5,8 +5,8 @@ module, and the model pin/stage/verify cells are produced by the generator from 
 sources so they cannot drift from the package.
 
 Review fixes (Notebook Review Framework v1, review PR #8, CNX-M1..M4 / CNX-m1..m4): the runtime is the fleet's uv
-isolated environment (no in-kernel install, no restart); the fine-tuning method is stated as it runs (full
-fine-tuning by default, head-only as a form choice) and its configuration, trainable set and dataset provenance are
+isolated environment (no in-kernel install, no restart); the fine-tuning method is stated as it runs (
+head-only fine-tuning by default, full fine-tuning as the Section 12 activity) and its configuration, trainable set and dataset provenance are
 printed and exported; the held-out verdict is computed from the counts with a 95 % Wilson interval against the
 majority baseline instead of a hard-coded "success"; the dataset archive is validated before training; the air-gapped
 fallback works; the reload is compared with the in-memory model; and the guided layer (who it is for, how to use,
@@ -180,7 +180,7 @@ print({'train_images': len(train_images), 'held_out_images': len(val_images), 'h
 )
 
 _FIT_CODE = _py(
-    """TRAINABLE = 'all'  # @param ["all", "head"]
+    """TRAINABLE = 'head'  # @param ["all", "head"]
 EPOCHS = 1  # @param {type:"integer"}
 BATCH_SIZE = 4  # @param {type:"integer"}
 LEARNING_RATE = 1e-4  # @param {type:"number"}
@@ -319,7 +319,7 @@ print(' | '.join(columns))
 for row in run_history:
     print(' | '.join(str(row[column]) for column in columns))
 if len(run_history) == 1:
-    print("One run so far. Set TRAINABLE = 'head' in Section 9, select that cell and choose Runtime > Run after; this table then shows both runs.")"""
+    print("One run so far. Set TRAINABLE = 'all' in Section 9, select that cell and choose Runtime > Run after; this table then shows both runs.")"""
 )
 
 TEMPLATE = {
@@ -350,15 +350,17 @@ TEMPLATE = {
         "generates the deterministic synthetic sample image, validates it into an input manifest, classifies it with the "
         "pretrained ImageNet-1k head, writes the zero-shot evaluation report, downloads and digest-verifies the "
         "`Cleanlab/cifar-10-subset` tutorial dataset and validates a seeded, pair-grouped split of 100 images per class "
-        "(160 training, 40 held out; both copies of a photo stay on one side), fine-tunes the whole network with a new two-class head (**full fine-tuning**, one epoch, AdamW and "
+        "(160 training, 40 held out; both copies of a photo stay on one side), fine-tunes a new two-class head on the frozen "
+        "pretrained backbone (**head-only fine-tuning**, one epoch, AdamW and "
         "cross-entropy), exports the artifact (`model.safetensors` + `model-config.json`), reloads it across a fresh "
         "boundary and checks it reproduces the in-memory model, evaluates it on the 40 held-out images with a 95 % interval "
         "against the majority-class baseline, and writes outputs and provenance. No repository clone, DIMER worker or "
         "service, credential, upload dialog or configuration edit is required (NOTEBOOK_SPEC 2.2 §5). Measured times come "
         "from the previous notebook version, whose model stages are the same: its cells took 28.0 s on a Kaggle Tesla T4 "
         "(2026-09-14, after the install) and 9.0 s of cell time in a local Windows CPU check with the files pre-staged; "
-        "this version fine-tunes on 160 instead of 26 images, which took 113 s of the 131 s default path in a local "
-        "Windows CPU check (2026-10-04, files pre-staged) and should take seconds on a T4 (an estimate). "
+        "this version's default path took 16.8 s of cell time in a local Windows CPU check (2026-10-04, files "
+        "pre-staged; 6.6 s of it the head-only fine-tuning on 160 images), and the optional full fine-tuning of "
+        "Section 12 took 40 s there. "
         "Building the isolated environment (PyTorch with its CUDA libraries) and downloading the 114 MB checkpoint come on "
         "top of these and usually take a few minutes (an estimate; no run of this version is recorded yet)."
     ),
@@ -405,9 +407,9 @@ TEMPLATE = {
         "pipeline applies a softmax and reports the argmax class plus the top-k classes with their scores. "
         "**In-kernel fine-tuning:** this notebook demonstrates both zero-shot base inference on ImageNet-1k classes and "
         "fine-tuning on custom classes with PyTorch AdamW and cross-entropy loss. `fit` replaces the 1000-class head with "
-        "a new linear classifier sized to your classes and, by default, trains **every parameter** (full fine-tuning: "
-        "27.8 M parameters); with `TRAINABLE = 'head'` it trains only the new classifier and freezes the pretrained "
-        "backbone (head-only fine-tuning). The notebook prints the trainable and frozen parameter counts before training. "
+        "a new linear classifier sized to your classes and, by default, trains **only that classifier** with the "
+        "pretrained backbone frozen (head-only fine-tuning: 1,538 parameters); with `TRAINABLE = 'all'` it trains "
+        "every parameter, the backbone included (full fine-tuning: 27.8 M parameters). The notebook prints the trainable and frozen parameter counts before training. "
         "The carried pipeline module adds snapshot verification, input and dataset validation, `fit`, a held-out "
         "evaluation report with its uncertainty, and the `top_k_accuracy`, `validate_inputs` and `evaluation_report` "
         "helpers. The default inference sample is a synthetic image generated in code; its prediction is demonstration "
@@ -435,17 +437,17 @@ TEMPLATE = {
         "**Roadmap:** *core concepts* — 4 the sample → 5 validate it → 6 classify with the pretrained model → 7 the "
         "evaluation report; *evaluation practice* — 8 the fine-tuning data and its split → 9 fine-tune → 10 reload, "
         "check equivalence and evaluate on held-out images → 11 export outputs and provenance (*engineering*) → 12 "
-        "**change one thing: train only the head** → conclude."
+        "**change one thing: train every layer** → conclude."
     ),
     "learning_objectives": (
         "by the end you should be able to (1) explain *image → resize and crop → ConvNeXt → softmax → argmax and top-5* "
         "and say why the score is not a probability of being right (Section 6); (2) explain why a prediction on the "
         "synthetic gradient is `not-measurable` and what would make it measurable (Section 7); (3) identify how many "
-        "parameters full and head-only fine-tuning train, from the printed counts (Section 9); (4) interpret a held-out "
+        "parameters head-only and full fine-tuning train, from the printed counts (Sections 9 and 12); (4) interpret a held-out "
         "accuracy together with its sample size, its 95 % interval and the majority-class baseline, and decide whether it "
         "supports a claim (Section 10); (5) check that an exported artifact reproduces the evaluated model (Section 10); "
-        "and (6) predict and then measure how head-only fine-tuning compares with full fine-tuning on the same split "
-        "(Section 12)."
+        "and (6) predict, measure and explain how full fine-tuning compares with head-only fine-tuning on the same split, "
+        "including why it can collapse to one class (Section 12)."
     ),
     "exclusions": (
         "object detection, segmentation, multi-label tagging, OCR, open-vocabulary classification, feature/embedding "
@@ -583,9 +585,9 @@ TEMPLATE = {
                 "`torch.optim.AdamW` (Adam with decoupled weight decay) on the **cross-entropy** loss between the softmax "
                 "and the true class. Each run starts again from the pretrained snapshot. The form fields are the whole "
                 "training configuration:\n\n"
-                "- `TRAINABLE`: `'all'` (default) is **full fine-tuning** — every parameter, the pretrained backbone "
-                "included, is updated (about 27.8 M parameters); `'head'` freezes the backbone and trains only the new "
-                "classifier (**head-only fine-tuning**, 1,538 parameters for 2 classes).\n"
+                "- `TRAINABLE`: `'head'` (default) is **head-only fine-tuning** — the pretrained backbone is frozen and "
+                "only the new classifier is trained (1,538 parameters for 2 classes); `'all'` is **full fine-tuning** — "
+                "every parameter, the backbone included, is updated (about 27.8 M parameters; Section 12).\n"
                 "- `EPOCHS` (passes over the training images), `BATCH_SIZE`, `LEARNING_RATE`, `WEIGHT_DECAY` and "
                 "`TRAIN_SEED`, which seeds PyTorch (head initialisation, shuffling) and Python's `random` (the training "
                 "augmentation), so a CPU run with the same settings repeats exactly; GPU kernels can still differ "
@@ -602,17 +604,15 @@ TEMPLATE = {
         },
         {
             "md": (
-                "**What to notice:** `full fine-tuning` with `trainable_parameters` 27,821,666 (the 27,820,128 pretrained "
-                "parameters plus the new 1,538-parameter head) and `frozen_parameters` 0, then one history row with the "
-                "training loss, the validation loss and the validation accuracy.\n\n"
-                "<details><summary>Check your reasoning</summary>Not necessarily. In a local Windows CPU check of this "
-                "notebook version (torch 2.14.0, defaults, 2026-10-04) one epoch gave training loss 0.93, validation loss "
-                "0.72 and validation accuracy 20/40 — exactly the 50 % baseline: the model called every held-out image a "
-                "frog. Updating all 27,821,666 parameters at learning rate 1e-4 with batches of 4 for one epoch on 160 tiny, "
-                "upscaled images can push the whole network towards one answer; with `SPLIT_SEED` 1 and 2 the same thing "
-                "happened (20/40), with `SPLIT_SEED` 0 it reached 34/40. A GPU run may land elsewhere, so the honest "
-                "prediction is \"anywhere from the baseline upwards\" — which is why a held-out check, and Section 12, "
-                "matter.</details>\n\n"
+                "**What to notice:** `head-only fine-tuning` with `trainable_parameters` 1,538 (768 features × 2 classes + "
+                "2 biases) and `frozen_parameters` 27,820,128 (the whole pretrained backbone), then one history row with "
+                "the training loss, the validation loss and the validation accuracy.\n\n"
+                "<details><summary>Check your reasoning</summary>Very likely, and by a wide margin. In a local Windows CPU "
+                "check of this notebook version (torch 2.14.0, defaults, 2026-10-04) one epoch gave training loss 0.41, "
+                "validation loss 0.23 and validation accuracy 37/40. The frozen backbone already describes images well "
+                "(it was trained on ImageNet), so a linear head on its features only has to learn which direction "
+                "separates frogs from trucks — 1,538 numbers that 160 images can pin down. With `SPLIT_SEED` 0, 1 and 2 "
+                "the same check scored 38/40, 37/40 and 40/40. A GPU run can differ by an image or two.</details>\n\n"
                 "## 10. Fresh-boundary reload, equivalence check and held-out evaluation\n\n"
                 "Loading a file is not proof that it holds the model you evaluated. "
                 "`ConvNeXtClassificationPipeline.from_pretrained` loads `model.safetensors` and `model-config.json` from "
@@ -640,13 +640,12 @@ TEMPLATE = {
                 "**What to notice:** `equivalent: True` with a score difference near 0; then `n`, the interval, the "
                 "baseline and the comparison word, not just the accuracy, and which images were misclassified.\n\n"
                 "<details><summary>Check your reasoning</summary>26/40 = 65 % has a 95 % Wilson interval of about 49.5 % to "
-                "78 %: its lower end sits just under the baseline, so `indistinguishable-from-baseline`. 30/40 = 75 % gives about "
-                "60 % to 86 %: `above-baseline`. In the local CPU check of this version the default run scored 20/40 "
-                "(interval about 35 % to 65 %, `indistinguishable-from-baseline`; frog 20/20, truck 0/20 — every image "
-                "called a frog) and the reload matched exactly (difference 0.0); with `SPLIT_SEED` 0, 1 and 2 the same "
-                "check scored 34/40 (`above-baseline`), 20/40 and 20/40. So full fine-tuning with these settings sometimes "
-                "learns the task and sometimes collapses to one class: no single run here shows that it works on frogs "
-                "and trucks in general.</details>\n\n"
+                "78 %: its lower end sits just under the baseline, so `indistinguishable-from-baseline`. 30/40 = 75 % gives "
+                "about 60 % to 86 %: `above-baseline`. In the local CPU check of this version the default run scored 37/40 "
+                "(interval about 80 % to 97 %, `above-baseline`; 2 trucks called frogs, 1 frog called a truck) and the "
+                "reload matched exactly (difference 0.0); with `SPLIT_SEED` 0, 1 and 2 it scored 38/40, 37/40 and 40/40. "
+                "That is consistent evidence that the adapted head separates these two classes on this data — but on 20 "
+                "photos of one archive, not a claim about frogs and trucks in general.</details>\n\n"
                 "## 11. Export outputs and provenance\n\n"
                 "*Engineering and reproducibility.* Machine-readable JSON preserves the full prediction (argmax decision and "
                 "the rank-ordered top-k scores), the evaluation report, the fine-tuning configuration (method, trainable and "
@@ -664,27 +663,30 @@ TEMPLATE = {
             "md": (
                 "**What to notice:** six files in `outputs/` plus the two-file artifact directory, and in "
                 "`outputs/{stem}_result.json` a `fine_tuning.config` block you could rerun from.\n\n"
-                "## 12. Your turn — change one thing: train only the head\n\n"
+                "## 12. Your turn — change one thing: train every layer\n\n"
                 "**Predict → Change one thing → Run → Observe → Explain.**\n\n"
-                "1. **Predict:** with the backbone frozen (`TRAINABLE = 'head'`, 1,538 trainable parameters instead of "
-                "27,821,666), will one epoch reach a lower or higher validation loss than full fine-tuning, and will the "
-                "held-out count change? Write your guess down.\n"
-                "2. **Change one thing:** in Section 9 set `TRAINABLE = 'head'` and nothing else.\n"
+                "1. **Predict:** with every layer trainable (`TRAINABLE = 'all'`, 27,821,666 trainable parameters instead "
+                "of 1,538), will one epoch at the same learning rate do better or worse than the head-only run on the 40 "
+                "held-out images? Write your guess down.\n"
+                "2. **Change one thing:** in Section 9 set `TRAINABLE = 'all'` and nothing else.\n"
                 "3. **Run:** select the Section 9 cell and choose **Runtime → Run after** (it re-runs Sections 9–12; the "
-                "artifact and result files are overwritten with the head-only run, which `fine_tuning.config.method` "
-                "records).\n"
+                "artifact and result files are overwritten with the full fine-tuning run, which `fine_tuning.config.method` "
+                "records). It is slower: 40 s instead of 7 s for the training in the local CPU check.\n"
                 "4. **Observe:** this cell prints one row per run in this session — method, trainable parameters, final "
                 "validation loss, the held-out count with its interval and the comparison to the baseline.\n"
-                "5. **Explain:** what did freezing the backbone change, and does the held-out set have enough images to tell "
-                "the two methods apart?\n\n"
-                "<details><summary>Check your reasoning</summary>In the local CPU check of this notebook version, one "
-                "head-only epoch ended with validation loss 0.23 (full fine-tuning: 0.72) and the held-out count went from "
-                "20/40 to 37/40 (95 % interval about 80 % to 97 %, `above-baseline`; 3 errors). Freezing the backbone kept "
-                "the pretrained features intact and trained only 1,538 parameters, which 160 images can pin down; full "
-                "fine-tuning at the same learning rate disturbed the backbone and collapsed to one class. Here the two "
-                "intervals do not overlap, so on this split head-only is clearly better — but it is one split, one seed and "
-                "20 independent photos, and full fine-tuning reached 34/40 at `SPLIT_SEED = 0`. A smaller "
-                "`LEARNING_RATE` for full fine-tuning is the natural next experiment.</details>"
+                "5. **Explain:** why can training more parameters give a *worse* model here, and does the held-out set have "
+                "enough images to tell the two methods apart?\n\n"
+                "<details><summary>Check your reasoning</summary>Worse, in the local CPU check of this notebook version: "
+                "one epoch of full fine-tuning ended with validation loss 0.72 (head-only: 0.23) and the held-out count "
+                "fell from 37/40 to **20/40 — the model called every one of the 40 held-out images a frog** (frog 20/20, "
+                "truck 0/20; interval about 35 % to 65 %, `indistinguishable-from-baseline`). That is a **collapse**: "
+                "with all 27.8 M parameters free, 40 AdamW steps at learning rate 1e-4 on batches of 4 tiny, upscaled "
+                "images moved the pretrained backbone away from the features that made the task easy, and the network "
+                "settled on the answer that minimises the loss without telling the classes apart. It is not a fluke of "
+                "one split: earlier CPU runs of the same full fine-tuning gave 20/40 at `SPLIT_SEED` 1 and 2 as well, and 34/40 at "
+                "`SPLIT_SEED` 0. The two intervals (80–97 % vs 35–65 %) do not overlap, so on this split head-only is "
+                "clearly better. More parameters need more data or a gentler schedule: a smaller `LEARNING_RATE` (e.g. "
+                "1e-5) is the natural next experiment for full fine-tuning.</details>"
             ),
             "code": _ACTIVITY_CODE,
         },
@@ -701,12 +703,13 @@ TEMPLATE = {
         "upscaled), each with its darkened copy — from one seeded, pair-grouped split and one training run. Read it "
         "together with its 95 % interval and the 50 % majority-class baseline printed in Section 10, remembering that "
         "the interval treats the 40 correlated images as independent and is therefore too narrow. Different split "
-        "seeds or devices move the count: a local CPU check of this version scored 20/40 (every image called a frog) at "
-        "the default seed and 34/40, 20/40 and 20/40 at split seeds 0, 1 and 2, and head-only fine-tuning scored 37/40 "
-        "on the default split. It shows that the fine-tuning, export and reload path runs "
+        "seeds or devices move the count: a local CPU check of this version scored 37/40 at the default seed and 38/40, "
+        "37/40 and 40/40 at split seeds 0, 1 and 2 (head-only), while full fine-tuning (Section 12) collapsed to 20/40, "
+        "every image called a frog. It shows that the fine-tuning, export and reload path runs "
         "and produces a working two-class classifier on this sample; it does **not** show how well fine-tuning works on "
-        "frogs and trucks, on CIFAR-10, or on your data. The default run trains all 27.8 M parameters on 160 images, so "
-        "over-fitting to the training images is likely and would not be visible on so few held-out images. Images whose "
+        "frogs and trucks, on CIFAR-10, or on your data. The default run trains only the 1,538-parameter head, so the "
+        "frozen ImageNet features decide what the classifier can see; full fine-tuning of all 27.8 M parameters on 160 "
+        "images is unstable with these settings, as Section 12 shows. Images whose "
         "subject is outside ImageNet-1k, line drawings, medical or satellite imagery, and subjects near the image border "
         "(removed by the center crop) all degrade results in ways the pipeline does not detect. The pipeline provides no "
         "detection, segmentation, multi-label, OCR, or open-vocabulary capability.\n\n"
@@ -724,8 +727,8 @@ TEMPLATE = {
         "the held-out count moves.\n"
         "3. **Your own classes:** in Section 8 set `USE_BYOD_DATASET = True` (and upload, or set `BYOD_DATASET_PATH`), "
         "then **Run after** from Section 8.\n"
-        "4. **Longer head-only training:** after Section 12, keep `TRAINABLE = 'head'` and raise `EPOCHS` (e.g. 5) in "
-        "Section 9, then **Run after** from Section 9.\n\n"
+        "4. **Gentler full fine-tuning:** after Section 12, keep `TRAINABLE = 'all'` and lower `LEARNING_RATE` (e.g. "
+        "1e-5) in Section 9, then **Run after** from Section 9; compare its row with the collapsed one.\n\n"
         "## Troubleshooting\n\n"
         "- **Section 1 stops with \"needs a Linux x86_64 runtime\".** The locked environment is built from manylinux "
         "wheels; use Colab, Kaggle or a Linux Jupyter server.\n"

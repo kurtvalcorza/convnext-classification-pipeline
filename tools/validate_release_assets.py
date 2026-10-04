@@ -59,7 +59,7 @@ CODE_MARKERS = (
     "pipe.fit(",
     "reloaded_pipe = ConvNeXtClassificationPipeline.from_pretrained(weights_dir=",
     # CNX-M2: the trainable set is planned and printed before training; the configuration and provenance are exported
-    "TRAINABLE = 'all'",
+    "TRAINABLE = 'head'",
     "planned = trainable_parameter_counts(len(CUSTOM_CLASSES), train_backbone=train_backbone)",
     "train_backbone=train_backbone,",
     "provenance=dataset_provenance,",

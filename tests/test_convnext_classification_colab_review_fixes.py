@@ -336,6 +336,17 @@ def test_pair_grouped_split_never_straddles_a_photo(seed: int) -> None:
         assert all(names.count(n) == 2 for n in names)
 
 
+def test_notebook_default_is_head_only_and_section_12_is_full_fine_tuning(nb: dict) -> None:
+    """Kurt 2026-10-04 (CNX-M2): head-only by default; full fine-tuning and its collapse are the activity."""
+    fit_cell = _cell(nb, "TRAINABLE = 'head'")
+    assert re.search(r"^TRAINABLE = 'head'  # @param", fit_cell, re.M)
+    assert "train_backbone = TRAINABLE == 'all'" in fit_cell
+    markdown = _markdown(nb)
+    section12 = markdown[markdown.index("## 12. Your turn") :]
+    assert "TRAINABLE = 'all'" in section12 and "collapse" in section12
+    assert "Set TRAINABLE = 'all' in Section 9" in _cell(nb, "run_history:")
+
+
 def test_notebook_default_uses_the_grouped_subset_of_100(nb: dict) -> None:
     data_cell = _cell(nb, "USE_BYOD_DATASET = False")
     assert re.search(r"^SUBSET_PER_CLASS = 100\b", data_cell, re.M)
@@ -488,7 +499,7 @@ def test_air_gapped_fallback_runs_through_fine_tuning_and_evaluation(
     assert "falling back to the deterministic synthetic stripes dataset" in printed
     assert ns["dataset_kind"] == "synthetic fallback" and len(ns["val_images"]) == 4
     assert all(img.size == (64, 64) for img in ns["train_images"] + ns["val_images"])
-    _run(_cell(nb, "TRAINABLE = 'all'"), ns)
+    _run(_cell(nb, "TRAINABLE = 'head'"), ns)
     printed = _run(_cell(nb, "EQUIVALENCE_TOLERANCE"), ns)
     report = ns["finetuned_eval_report"]
     assert report["sample_kind"] == "synthetic fallback" and report["equivalence"]["equivalent"] is True
@@ -534,7 +545,7 @@ def test_reload_cell_stops_when_the_artifact_does_not_reproduce_the_model(
         "USE_BYOD_DATASET = False", "USE_BYOD_DATASET = True", 1
     )
     _run(data_cell.replace("BYOD_DATASET_PATH = ''", f"BYOD_DATASET_PATH = {str(archive)!r}"), ns)
-    _run(_cell(nb, "TRAINABLE = 'all'"), ns)
+    _run(_cell(nb, "TRAINABLE = 'head'"), ns)
     with pytest.raises(RuntimeError, match="does not reproduce the in-memory model"):
         _run(_cell(nb, "EQUIVALENCE_TOLERANCE"), ns)
 
@@ -569,7 +580,7 @@ def test_guided_layer_and_infrastructure_cells(nb: dict) -> None:
         assert marker in markdown, marker
     titled = [c for c in _code_cells(nb) if _src(c).startswith("# @title Infrastructure:")]
     assert len(titled) == 5 and all(c["metadata"].get("cellView") == "form" for c in titled)
-    fit_cell = _cell(nb, "TRAINABLE = 'all'")
+    fit_cell = _cell(nb, "TRAINABLE = 'head'")
     for field in ("TRAINABLE", "EPOCHS", "BATCH_SIZE", "LEARNING_RATE", "WEIGHT_DECAY", "TRAIN_SEED"):
         assert re.search(rf"^{field} = .*# @param", fit_cell, re.M), field
     for stale in ("classification head fine-tuning", "nothing is downloaded", "gracefully falls back"):
