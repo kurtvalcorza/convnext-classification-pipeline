@@ -163,6 +163,8 @@ they are measurements for the stated runtime, not general estimates.
 
 ## Current status
 
+**Tier C wording revision (2026-10-25, branch `fix/convnext-classification-tier-c-2026-10-25`, code commit `c81bfbf`).** Markdown, header and metadata only: pretraining-overlap statement (DAT9), held-out/validation naming, run-labelled numbers (REL13), use notice, `notebook_kind` and IEEE references. The regenerated notebook blob `0a8f77a34b38f7ad0c7852807010d6a696431cbb` is **Candidate** and its hosted runs are **pending** (REL14); the 2026-10-04 run of `625fd1b` is evidence for blob `1f059cea` only.
+
 **Candidate.** The review fixes (CNX-M1..M4, CNX-m1..m4, review PR #8) regenerated the notebook: no in-kernel
 install (the fleet's uv isolated environment), the fine-tuning method stated as it runs and its configuration
 exported, a held-out verdict computed from the counts with its interval, a validated dataset intake, a working
