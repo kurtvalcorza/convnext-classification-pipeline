@@ -122,8 +122,34 @@ they are measurements for the stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-14 | `98fa3d8` / `79eaced9ad68` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-convnext-classification` v1) | Default path (inference, fine-tuning, reload, held-out evaluation) | pass 1 150.6 s + pass 2 28.0 s | **Not a one-pass `Run all`; not promotion evidence.** Pass 1 stopped in the install cell with the restart `RuntimeError` (`cuda-bindings` 12.9.4 → 13.4.1, `numpy` 2.0.2 → 2.5.3); pass 2, after the restart, ran 10/10 code cells (held-out 5/6, verdict then hard-coded `success`). Superseded by the review fixes (isolated environment, no restart); the current blob has no hosted run yet. |
+| 2026-09-14 | `98fa3d8` / `79eaced9ad68` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-convnext-classification` v1) | Default path (inference, fine-tuning, reload, held-out evaluation) | pass 1 150.6 s + pass 2 28.0 s | **Not a one-pass `Run all`; not promotion evidence.** Pass 1 stopped in the install cell with the restart `RuntimeError` (`cuda-bindings` 12.9.4 → 13.4.1, `numpy` 2.0.2 → 2.5.3); pass 2, after the restart, ran 10/10 code cells (held-out 5/6, verdict then hard-coded `success`). Superseded by the review fixes (isolated environment, no restart); history (REL14). |
+| 2026-10-25 | `93dc9d5` / `93de9871886b` | Colab CLI sequential execution, fresh Colab Tesla T4 | Default path only (`TRAINABLE = 'head'`; inference, head-only fine-tuning, reload, held-out evaluation) | 91.7 s | **One pass, no restart, 0 errors**, 14/14 code cells. Held-out **37/40 = 92.5 %, 95 % Wilson 80.1 %–97.4 %**, above the 50 % majority baseline (verdict `sample-sanity`, `above-baseline`); every printed metric equals the 2026-10-04 run. See the record below. |
 | 2026-10-04 | `625fd1b` / `1f059ceaa746` | Colab CLI 0.7.4 sequential execution, fresh Colab Tesla T4 (session `suite-convnext-625fd1b-a531`) | Default path only (`TRAINABLE = 'head'`; inference, head-only fine-tuning, reload, held-out evaluation) | 106.0 s | **One pass, no restart, 0 errors**, 14/14 code cells. Held-out **37/40 = 92.5 %, 95 % Wilson 80.1 %–97.4 %**, above the 50 % majority baseline (verdict `sample-sanity`, `above-baseline`). See the record below. |
+
+### 2026-10-25 — Colab CLI one-pass run of `93dc9d5` (blob `93de9871`, fresh Colab Tesla T4)
+
+- **Commit / notebook blob:** PR #9 head `93dc9d56b6023ff8f88dc3553e20e7c339064173` / `93de9871886b913d2d7ba249c6dd5f22539aa495`
+  (tier C wording revision; blob checked against the fetched bytes before the VM was allocated; input unchanged, no overrides).
+- **Executor:** Colab CLI sequential execution (`colab exec -f`), fresh Colab VM, Tesla T4, no repository checkout,
+  clean model cache. Not a browser `Run all`: cell order is evidenced by `exec.log` (`Executing cell 1/14` … `14/14`).
+- **Path:** default settings only (`USE_BYOD = False`, `GROUND_TRUTH_INDEX = -1`, `USE_BYOD_DATASET = False`,
+  `TRAINABLE = 'head'`). Wall time 91.7 s (including installs and the model download).
+- **Outcome:** **one pass, no restart, 0 errors**; 14/14 code cells; cell 4 (the carried module) prints nothing by design.
+- **Runtime:** isolated Python 3.12.12 (kernel 3.13.16), 45 locked packages (setup 54 s), device `cuda:0`;
+  `NOTEBOOK_SOURCE.repository_revision` `204b681f`. Model `timm/convnext_tiny.in12k_ft_in1k` @ `aa096f03…` (3 files,
+  114,390,940 bytes, verified), `source == 'local-snapshot'`.
+- **Results:** synthetic gradient top-1 `analog clock` (409, score 0.0723), report `not-measurable`; oversized probe
+  `rejected`; dataset `Cleanlab/cifar-10-subset @ bb5a7aab` (`66f90a4f…`), 160 / 40, `held_out_sharing_a_file_name_with_train: 0`;
+  head-only fine-tuning 1,538 trainable / 27,820,128 frozen, train loss 0.4082, val loss 0.2318, val accuracy 0.925;
+  reload `fine-tuned-artifact`, 40/40 label agreement, max score difference 0.0, `equivalent: True`; held-out **37/40 = 92.5 %**,
+  Wilson **80.1 % to 97.4 %**, majority 50.0 %, frog 19/20, truck 18/20, `above-baseline`. Every value equals the 2026-10-04
+  run of `1f059cea`, and every number the notebook's prose quotes from a recorded run equals this run's output.
+- **Evidence files** (`docs/execution-evidence/2026-10-25/`, captured → committed; the exec log's 2 local run-directory paths redacted to `<local-run-dir>`):
+  - `convnext_classification_colab_93dc9d5_colab-cli-t4_default.ipynb` — `bf7a38d259e76ba09423499ee46aa4f5794d23f9558be5a16556b1f42b22ca37` → unchanged
+  - `exec.log` — `2ca69e2e22e62a05c8f23d2261d7e60b4cfa12e3ace27c8a4c11e73dba101310` → `6b4d4f428963031719c882296c9eec58bafa8e6324baaa5deb3e0440524fe0b0`
+  - `run_summary.json` — `be52e89340499e1ae7d98a45835bec001b97b1f55f96888fbceca042187ac21a` → unchanged
+- **Not exercised:** the BYOD image and BYOD dataset gates (step 7), the Section 12 activity (`TRAINABLE = 'all'`);
+  no browser interaction.
 
 ### 2026-10-04 — Colab CLI one-pass run of `625fd1b` (fresh Colab Tesla T4)
 
@@ -163,11 +189,13 @@ they are measurements for the stated runtime, not general estimates.
 
 ## Current status
 
+**Tier C wording revision (2026-10-25, branch `fix/convnext-classification-tier-c-2026-10-25`, code commit `c81bfbf`).** Markdown, header and metadata only: pretraining-overlap statement (DAT9), held-out/validation naming, run-labelled numbers (REL13), use notice, `notebook_kind`, IEEE references and the DIMER Notebook Specification 2.5 declaration. The regenerated notebook blob `93de9871886b913d2d7ba249c6dd5f22539aa495` is **Candidate**; its default path ran in one pass on a fresh Colab Tesla T4 on 2026-10-25 (Colab CLI, 14/14 cells, held-out 37/40, Wilson 80.1 %–97.4 %; record above). This PR's run covers the default path only. Remaining gates: REL12 (a hosted BYOD run with one accepted and one refused input) and REL2 (a browser run of the interactive journeys). The 2026-10-04 run of `625fd1b` is evidence for blob `1f059cea` only and is history (REL14).
+
 **Candidate.** The review fixes (CNX-M1..M4, CNX-m1..m4, review PR #8) regenerated the notebook: no in-kernel
 install (the fleet's uv isolated environment), the fine-tuning method stated as it runs and its configuration
 exported, a held-out verdict computed from the counts with its interval, a validated dataset intake, a working
 fallback, a reload equivalence check and the guided layer. Static validation, the generator `--check`, ruff and the
-offline unit suite pass on this source. A one-pass hosted run of the current notebook blob `1f059cea` is recorded
+offline unit suite pass on this source. A one-pass hosted run of the earlier notebook blob `1f059cea` is recorded
 above (2026-10-04, Colab CLI sequential execution on a fresh Tesla T4, default path, 14/14 cells, no restart,
 held-out 37/40, Wilson 80.1 %–97.4 %). Remaining gates: the BYOD release gate (step 7) on a hosted runtime and a
 reviewer's confirmation of the recorded run against the blob under review. The registry status remains
