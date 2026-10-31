@@ -62,6 +62,8 @@ print(pipe.predict(Image.new("RGB", (256, 256), (90, 140, 200)))["predictions"][
 
 **Candidate.** Static/unit checks do not constitute clean-runtime notebook evidence. The review fixes (CNX-M1..M4, CNX-m1..m4) regenerated the notebook; a one-pass hosted run of the current blob `93de9871` (tier C wording revision, PR #9) is recorded (Colab CLI sequential execution on a fresh Tesla T4, 2026-10-25; the 2026-10-04 run of `1f059cea` is history) and the BYOD gate (REL12) and a browser run (REL2) are still open (the 2026-09-14 Kaggle run needed a restart and is not a `Run all` PASS); complete `docs/release-verification.md` against the exact release revision before calling the notebook release-grade.
 
+The current blob `d798834a` (code commit `8da00ab`) shows a refused BYOD input as one `Refused: <file>: <reason>` line with no traceback, removes the earlier run's results and `outputs/` files and stops Run all at that cell, while genuine failures keep their traceback (NOTEBOOK_SPEC DAT19/DAT20); its default path (14/14 code cells, one pass, no restart, 0 errors) and its scripted DAT20 refusal (`USE_BYOD=True;BYOD_IMAGE_PATH='/etc/hostname'`: exactly one `Refused:` line at cell `convnext_classification-13`, no traceback, earlier cells clean, VM released) both passed on a hosted Colab Tesla T4 on 2026-10-28 (Colab CLI sequential execution, not a browser `Run all`; see `docs/release-verification.md`, "Recorded executions"). The remaining gates are REL12 (a hosted BYOD run with an accepted input) and REL2 (a browser `Run all`). The hosted runs of earlier blobs, including `93de9871`, are history for it (REL14).
+
 ## Documents
 
 - [`MODEL_CARD.md`](MODEL_CARD.md) — MODEL_CARD_SPEC 1.0 card
